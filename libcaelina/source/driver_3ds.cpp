@@ -157,10 +157,6 @@ static void tileImage32(u32* src, u32* dst, int width, int height)
     }
 }
 
-static
-void safeWaitForEvent(Handle event);
-extern Handle gspEvents[GSPGPU_EVENT_MAX];
-
 static Result GX_RequestDmaFlush(u32* src, u32* dst, u32 length)
 {
     u32 gxCommand[0x8];
@@ -185,7 +181,7 @@ void gfx_device_3ds::repack_texture(gfx_texture &tex) {
     } else {
         if (!tex.colorBuffer) tex.colorBuffer = (GLubyte*)vramMemAlign(size, 0x80);
         GX_RequestDmaFlush(dst, (u32*)tex.colorBuffer, size);
-        safeWaitForEvent(gspEvents[GSPGPU_EVENT_DMA]);
+        gspWaitForDMA();
         linearFree(dst);
         tex.extdata = 1;
     }
@@ -488,12 +484,6 @@ void gfx_device_3ds::setup_state(const mat4& projection, const mat4& modelview) 
     GPU_SetDummyTexEnv(5);
 }
 
-static
-void safeWaitForEvent(Handle event) {
-    Result res = svcWaitSynchronization(event, 1000*1000*100);
-    if(!res)svcClearEvent(event);
-}
-
 void gfx_device_3ds::render_vertices_vbo(const mat4& projection, const mat4& modelview, u8 *data, GLuint units) {
     GPUCMD_SetBufferOffset(0);
     GPUCMD_AddMaskedWrite(GPUREG_ATTRIBBUFFERS_FORMAT_HIGH, 0b111111111111 << 16, 0);
@@ -515,7 +505,7 @@ void gfx_device_3ds::render_vertices_vbo(const mat4& projection, const mat4& mod
     GPU_FinishDrawing();
     GPUCMD_Finalize();
     GPUCMD_FlushAndRun();
-    safeWaitForEvent(gspEvents[GSPGPU_EVENT_P3D]);
+    gspWaitForP3D();
 }
 
 void gfx_device_3ds::render_vertices(const mat4& projection, const mat4& modelview) {
@@ -541,7 +531,7 @@ void gfx_device_3ds::render_vertices(const mat4& projection, const mat4& modelvi
     GPU_FinishDrawing();
     GPUCMD_Finalize();
     GPUCMD_FlushAndRun();
-    safeWaitForEvent(gspEvents[GSPGPU_EVENT_P3D]);
+    gspWaitForP3D();
     linearFree(temp_vbo.data);
     
 }
@@ -599,7 +589,7 @@ void gfx_device_3ds::render_vertices_array(GLenum mode, GLint first, GLsizei cou
   GPU_FinishDrawing();
   GPUCMD_Finalize();
   GPUCMD_FlushAndRun();
-  safeWaitForEvent(gspEvents[GSPGPU_EVENT_P3D]);
+  gspWaitForP3D();
 }
 
 void gfx_device_3ds::clearDepth(GLfloat d) {
@@ -683,7 +673,7 @@ void gfx_device_3ds::clearDepth(GLfloat d) {
   GPU_FinishDrawing();
   GPUCMD_Finalize();
   GPUCMD_FlushAndRun();
-  safeWaitForEvent(gspEvents[GSPGPU_EVENT_P3D]);
+  gspWaitForP3D();
 }
 
 #define DISPLAY_TRANSFER_FLAGS \
@@ -694,7 +684,7 @@ void gfx_device_3ds::clearDepth(GLfloat d) {
 void gfx_device_3ds::flush(u8 *fb, int w, int h, int format) {
     
     GX_DisplayTransfer((u32*)gpuOut, GX_BUFFER_DIM(width, height), (u32 *)fb, GX_BUFFER_DIM(w, h), DISPLAY_TRANSFER_FLAGS | GX_TRANSFER_OUT_FORMAT(format));
-    safeWaitForEvent(gspEvents[GSPGPU_EVENT_PPF]);
+    gspWaitForPPF();
 }
 
 #define RGBA8(r,g,b,a) ( (((r)&0xFF)<<24) | (((g)&0xFF)<<16) | (((b)&0xFF)<<8) | (((a)&0xFF)<<0) )
@@ -780,5 +770,5 @@ void gfx_device_3ds::clear(float r, float g, float b, float a) {
   GPU_FinishDrawing();
   GPUCMD_Finalize();
   GPUCMD_FlushAndRun();
-  safeWaitForEvent(gspEvents[GSPGPU_EVENT_P3D]);
+  gspWaitForP3D();
 }
