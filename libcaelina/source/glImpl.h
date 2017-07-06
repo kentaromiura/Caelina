@@ -16,7 +16,7 @@
 #include <GL/gl.h>
 #include <GL/glext.h>
 #endif
-
+#include "gpulib.h"
 #include "gfx_device_internal.h"
 
 #define CHECK_NULL(x, ...) \
